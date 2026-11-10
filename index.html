@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تسجيل الدخول - Firebase</title>
+    <style>
+        /* تنسيق الصفحة العامة */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        
+        /* صندوق تسجيل الدخول */
+        .login-box {
+            background: white;
+            padding: 35px 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 400px;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        h2 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 25px;
+            font-size: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        input[type="email"],
+        input[type="password"] {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 15px;
+            transition: border-color 0.3s;
+            outline: none;
+        }
+
+        input[type="email"]:focus,
+        input[type="password"]:focus {
+            border-color: #667eea;
+        }
+
+        /* الأزرار */
+        button {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 10px;
+        }
+
+        .btn-login {
+            background-color: #667eea;
+            color: white;
+        }
+
+        .btn-login:hover:not(:disabled) {
+            background-color: #5568d3;
+            transform: translateY(-2px);
+        }
+
+        .btn-register {
+            background-color: #48bb78;
+            color: white;
+        }
+
+        .btn-register:hover:not(:disabled) {
+            background-color: #38a169;
+            transform: translateY(-2px);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* صندوق الرسائل */
+        .alert {
+            padding: 12px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 14px;
+            display: none;
+        }
+
+        .alert-error {
+            background-color: #fed7d7;
+            color: #c53030;
+            border: 1px solid #fc8181;
+            display: block;
+        }
+
+        .alert-success {
+            background-color: #c6f6d5;
+            color: #276749;
+            border: 1px solid #9ae6b4;
+            display: block;
+        }
+
+        /* مؤشر التحميل */
+        .loader {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 0.8s linear infinite;
+            margin-left: 5px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="login-box">
+    <h2>🔐 تسجيل الدخول</h2>
+
+    <!-- صندوق الرسائل -->
+    <div id="messageBox" class="alert"></div>
+
+    <form id="authForm" onsubmit="event.preventDefault();">
+        <div class="form-group">
+            <label for="email">البريد الإلكتروني:</label>
+            <input type="email" id="email" placeholder="example@domain.com" required>
+        </div>
+        <div class="form-group">
+            <label for="password">كلمة المرور:</label>
+            <input type="password" id="password" placeholder="••••••••" required minlength="6">
+        </div>
+        
+        <button type="button" class="btn-login" onclick="login()" id="loginBtn">
+            تسجيل الدخول
+        </button>
+        <button type="button" class="btn-register" onclick="register()" id="registerBtn">
+            إنشاء حساب جديد
+        </button>
+    </form>
+</div>
+
+<!-- استيراد مكتبات Firebase (الإصدار 10) -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { 
+        getAuth, 
+        signInWithEmailAndPassword, 
+        createUserWithEmailAndPassword 
+    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+    // 1. إعدادات Firebase الخاصة بك
+    const firebaseConfig = {
+        apiKey: "AIzaSyCdV3qgXHHxz4e8mf1c-2TrZujXqY-LuQc",
+        authDomain: "black-9deb2.firebaseapp.com",
+        projectId: "black-9deb2",
+        storageBucket: "black-9deb2.firebasestorage.app",
+        messagingSenderId: "725901940218",
+        appId: "1:725901940218:web:bc10585da68be02dc14043"
+    };
+
+    // 2. تهيئة Firebase
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    // 3. دوال مساعدة للواجهة
+    const messageBox = document.getElementById('messageBox');
+    const loginBtn = document.getElementById('loginBtn');
+    const registerBtn = document.getElementById('registerBtn');
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+
+    function showMessage(text, isError) {
+        messageBox.className = 'alert ' + (isError ? 'alert-error' : 'alert-success');
+        messageBox.innerText = text;
+        messageBox.style.display = 'block';
+    }
+
+    function setLoading(isLoading, btnText) {
+        loginBtn.disabled = isLoading;
+        registerBtn.disabled = isLoading;
+        if (isLoading) {
+            loginBtn.innerHTML = btnText + ' <span class="loader"></span>';
+        } else {
+            loginBtn.innerHTML = 'تسجيل الدخول';
+            registerBtn.innerHTML = 'إنشاء حساب جديد';
+        }
+    }
+
+    function clearMessage() {
+        messageBox.style.display = 'none';
+    }
+
+    // 4. دالة تسجيل الدخول
+    window.login = async function() {
+        clearMessage();
+        const email = emailInput.value.trim();
+        const password = passwordInput.value;
+
+        if (!email || !password) {
+            showMessage("يرجى إدخال البريد الإلكتروني وكلمة المرور.", true);
+            return;
+        }
+
+        setLoading(true, 'جاري الدخول...');
+
+        try {
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            showMessage("✅ تم تسجيل الدخول بنجاح! مرحباً بك.", false);
+            
+            // يمكنك توجيه المستخدم لصفحة أخرى هنا:
+            // window.location.href = "dashboard.html";
+            
+        } catch (error) {
+            let errorMsg = "حدث خطأ غير متوقع.";
+            switch (error.code) {
+                case 'auth/user-not-found':
+                case 'auth/wrong-password':
+                case 'auth/invalid-credential':
+                    errorMsg = "❌ البريد الإلكتروني أو كلمة المرور غير صحيحة.";
+                    break;
+                case 'auth/invalid-email':
+                    errorMsg = "❌ صيغة البريد الإلكتروني غير صحيحة.";
+                    break;
+                case 'auth/too-many-requests':
+                    errorMsg = "⚠️ محاولات كثيرة خاطئة. يرجى المحاولة لاحقاً.";
+                    break;
+                case 'auth/network-request-failed':
+                    errorMsg = "🌐 فشل الاتصال بالشبكة. تحقق من الإنترنت.";
+                    break;
+                case 'auth/unauthorized-domain':
+                    errorMsg = "🔒 النطاق غير مصرح به في Firebase. أضف رابط الموقع في إعدادات Firebase.";
+                    break;
+                default:
+                    errorMsg = "❌ " + error.message;
+            }
+            showMessage(errorMsg, true);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // 5. دالة إنشاء حساب جديد
+    window.register = async function() {
+        clearMessage();
+        const email = emailInput.value.trim();
+        const password = passwordInput.value;
+
+        if (!email || !password) {
+            showMessage("يرجى إدخال البريد الإلكتروني وكلمة المرور.", true);
+            return;
+        }
+
+        if (password.length < 6) {
+            showMessage("⚠️ كلمة المرور يجب أن تكون 6 أحرف على الأقل.", true);
+            return;
+        }
+
+        setLoading(true, 'جاري الإنشاء...');
+
+        try {
+            await createUserWithEmailAndPassword(auth, email, password);
+            showMessage("✅ تم إنشاء الحساب بنجاح! يمكنك الآن تسجيل الدخول.", false);
+            passwordInput.value = '';
+        } catch (error) {
+            let errorMsg = "حدث خطأ غير متوقع.";
+            switch (error.code) {
+                case 'auth/email-already-in-use':
+                    errorMsg = "⚠️ هذا البريد الإلكتروني مسجل بالفعل.";
+                    break;
+                case 'auth/weak-password':
+                    errorMsg = "⚠️ كلمة المرور ضعيفة جداً.";
+                    break;
+                case 'auth/invalid-email':
+                    errorMsg = "❌ صيغة البريد الإلكتروني غير صحيحة.";
+                    break;
+                case 'auth/operation-not-allowed':
+                    errorMsg = "⚙️ يجب تفعيل تسجيل الدخول بالبريد في لوحة Firebase.";
+                    break;
+                case 'auth/unauthorized-domain':
+                    errorMsg = "🔒 النطاق غير مصرح به في Firebase. أضف رابط الموقع في إعدادات Firebase.";
+                    break;
+                default:
+                    errorMsg = "❌ " + error.message;
+            }
+            showMessage(errorMsg, true);
+        } finally {
+            setLoading(false);
+        }
+    };
+</script>
+
+</body>
+</html>
