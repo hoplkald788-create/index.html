@@ -1,41 +1,68 @@
 here<?php
-// 1. إعداد الترويسة لتكون JSON مع دعم اللغة العربية
-header('Content-Type: application/json; charset=utf-8');
+// 1. السماح بالوصول من أي مكان (CORS) - مهم لو الواجهة في ملف منفصل
+header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type");
+header("Content-Type: application/json; charset=utf-8");
 
-// 2. منع أي أخطاء أو تحذيرات من الظهور وتخريب شكل JSON
-error_reporting(0);
-ini_set('display_errors', 0);
-
-// 3. التحقق من وجود البيانات (رقم الحساب وكلمة المرور) في الطلب
-// هذا الجزء يحاكي الكود الأصلي الذي يتحقق من البيانات
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // إذا تم إرسال بيانات، نتحقق منها
-    $account = isset($_POST['account']) ? trim($_POST['account']) : '';
-    $password = isset($_POST['password']) ? trim($_POST['password']) : '';
-
-    if (empty($account) || empty($password)) {
-        // إذا كانت البيانات ناقصة، نعيد نفس رسالة الخطأ
-        $response = [
-            "success" => false,
-            "message" => "رقم الحساب وكلمة المرور مطلوبان."
-        ];
-    } else {
-        // هنا يمكنك وضع كود التحقق الفعلي (مثلاً الاتصال بقاعدة البيانات)
-        // حالياً سنعيد رسالة نجاح تجريبية
-        $response = [
-            "success" => true,
-            "message" => "تم تسجيل الدخول بنجاح."
-        ];
-    }
-} else {
-    // إذا تم فتح الرابط مباشرة (GET) بدون إرسال بيانات
-    // نعيد نفس رسالة الخطأ كما في الصورة
-    $response = [
-        "success" => false,
-        "message" => "رقم الحساب وكلمة المرور مطلوبان."
-    ];
+// 2. لو الطلب من نوع OPTIONS (بيحصل في المتصفحات قبل POST) نرجعه فاضي
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
 }
 
-// 4. طباعة النص بصيغة JSON مع الحفاظ على الحروف العربية
-echo json_encode($response, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-?>
+// 3. استقبال البيانات (سواء جاية JSON أو Form Data)
+$input = file_get_contents('php://input');
+$data = json_decode($input, true);
+
+// لو البيانات مش JSON، نجرب نقراها من $_POST
+if (!$data) {
+    $data = $_POST;
+}
+
+// 4. استخراج القيم (لو مش موجودة نحطها فاضية)
+$accountNumber = trim($data['accountNumber'] ?? '');
+$password      = trim($data['password'] ?? '');
+
+// 5. التحقق: لو رقم الحساب أو كلمة المرور فاضيين
+if (empty($accountNumber) || empty($password)) {
+    http_response_code(400); // Bad Request
+    echo json_encode([
+        "success" => false,
+        "message" => "رقم الحساب وكلمة المرور مطلوبان"
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+// 6. (اختياري) تحقق إضافي: لو رقم الحساب مش أرقام
+if (!ctype_digit($accountNumber)) {
+    http_response_code(400);
+    echo json_encode([
+        "success" => false,
+        "message" => "رقم الحساب يجب أن يكون أرقاماً فقط"
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+// 7. لو كله تمام (هنا بتحط كود تسجيل الدخول الحقيقي - قاعدة بيانات إلخ)
+// مثال: تحقق من البيانات في قاعدة البيانات
+/*
+$stmt = $pdo->prepare("SELECT * FROM users WHERE account_number = ?");
+$stmt->execute([$accountNumber]);
+$user = $stmt->fetch();
+if (!$user || !password_verify($password, $user['password'])) {
+    http_response_code(401);
+    echo json_encode(["success" => false, "message" => "بيانات الدخول غير صحيحة"], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+*/
+
+// 8. نجاح (مثال فقط)
+http_response_code(200);
+echo json_encode([
+    "success" => true,
+    "message" => "تم تسجيل الدخول بنجاح",
+    "data" => [
+        "accountNumber" => $accountNumber
+    ]
+], JSON_UNESCAPED_UNICODE);
